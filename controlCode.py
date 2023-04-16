@@ -11,16 +11,16 @@
 
 #%% Start Imports ###
 import os                   # Additional python and pi interface
-import sys                  # Used  track terminal output
 import time                 # Allows to pause
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'       # Disable pygame welcome message
 import pygame               # Interfaces with xbox controller
 import atexit               # "At Exit" module for when code is terminated
-import serial as ser        # Interfaces with the arduino
 import RPi.GPIO as GPIO     # Used for controlling the motors from the pi
-import math                 # Additional math functions
 import signal               # Used to control keyboard interrupt
 import threading
+
+import fancy
+import arduino
 ### End imports ###
 
 #%% Start Formatting ###
@@ -44,8 +44,6 @@ os.putenv('SDL_VIDEODRIVER', 'dummy')       # Disable digital display
     # setDuty               - Tells the arduino to set a motor to a duty cycle
 # General   - Miscellaneous Functions
     # cleanUP               - Function that runs on termination of code
-    # startPrintTracking    - Allows code to track all outputs to command window in a text file
-    # fancyPrint            - Prints output in a formatted way with dashes for significant information
     # handleInterrupt       - Handles a Ctrl+C without displaying an error message
 
 #%% Start Input Programs ###
@@ -103,7 +101,7 @@ def wait4XboxController():
     if pygame.joystick.get_count() > 0:                 # If a joystick has been connected
         controller = pygame.joystick.Joystick(0)        # Create controller variable
         controller.init()                               # Initialize controller
-        fancyPrint("The {} is connected".format(controller.get_name()))
+        fancy.Print("The {} is connected".format(controller.get_name()))
         return controller                               # Return variable
     
     # If no joysticks are connected, wait for one to be added
@@ -112,7 +110,7 @@ def wait4XboxController():
             if event.type == pygame.JOYDEVICEADDED:   # If a joystick is connected
                 controller = pygame.joystick.Joystick(0) # Create controller variable
                 controller.init()                   # Initialize controller
-                fancyPrint("The {} is connected".format(controller.get_name()))
+                fancy.Print("The {} is connected".format(controller.get_name()))
                 return controller                   # Return the initialized controller object
         print("Retrying controller connection...")   # Take a guess...
         time.sleep(2)                                # Two-second delay
@@ -197,7 +195,7 @@ def buttonPressEvent(event):
     # Globals : none
 
     if event.button == 11:   # Middle Right "Menu" Button
-        fancyPrint("Menu Button Pressed")
+        fancy.Print("Menu Button Pressed")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 0:  # "A" Button
         print("button 0 down")
@@ -288,67 +286,8 @@ def cleanUP():
     # Globals : uno     -   Calls the arduino communication variable
     GPIO.cleanup()
 
-    fancyPrint("Program Terminated")        # Inform of termination
-
-
-def startPrintTracking():
-    # Function enables tracking of the terminal output
-    # Inputs  : none
-    # Outputs : none
-    # Globals : none
-
-    # Note: Code came from ChatGPT
-
-    class Tee:
-        """
-        Tee object that captures output to both stdout and a file.
-        """
-        def __init__(self, filename, stream):
-            self.file = open(filename, 'a')
-            self.stream = stream
-
-        def __del__(self):
-            self.file.close()
-
-        def write(self, data):
-            self.file.write(data)
-            self.file.flush()
-            self.stream.write(data)
-
-        def flush(self):
-            self.file.flush()
-            self.stream.flush()
-
-    # Define the log file path
-    log_file_path = "/home/spex/Desktop/outputLogs.txt"
-
-    # Create a file object for the log file
-    log_file = open(log_file_path, 'w')
-
-    # Create a Tee object to capture output to both stdout and the log file
-    tee = sys.stdout = Tee(log_file_path, sys.stdout)
-
-
-def fancyPrint(inputText):
-    # Provides formatted output for important information
-    # Inputs  : none
-    # Outputs : none
-    # Globals : none
-
-    dashLen = 50                                                    # Number of dashes
-    breakLine = "-" * dashLen                                       # Create the breakline
-    with open("/home/spex/Desktop/outputLogs.txt", 'r') as f:       # Open the log file
-        lines = f.readlines()                                           # Read the last line
-        if "-------" not in lines[-1].strip():                          # If there was no breakline above
-            print(breakLine)                                                # Add a breakline
-        textLength = len(inputText)                                     # Length of input
-        sides = math.floor((dashLen - textLength - 2) / 2)              # Finds amount of side dashes
-        sides = '-' * sides                                             # Generates side walls
-        if textLength % 2 == 0:                                         # If text length is even
-            print(sides + " " + inputText + " " + sides)                    # Normal formatted print
-        else:                                                           # If text length is odd
-            print(sides + " " + inputText + " -" + sides)                   # Formatted print with an extra dash
-        print(breakLine)                                                # Print ending breakline
+    fancy.Print("Program Terminated")        # Inform of termination
+    fancy.close()
 
 
 def handleInterrupt(signum, frame):
@@ -358,7 +297,8 @@ def handleInterrupt(signum, frame):
     # Globals : none
 
     print('\n')                                             # Better looks
-    fancyPrint("!!! Code Was Interupted By User !!!")       # Inform of interruption
+    fancy.Print("!!! Code Was Interupted By User !!!")       # Inform of interruption
+    
     exit(0)                                                 # exit the program with status code 0 (success)
 
 
@@ -372,17 +312,19 @@ def handleInterrupt(signum, frame):
 ### Initializations ###
 atexit.register(cleanUP)                            # Tells the cleanup function to run at close
 signal.signal(signal.SIGINT, handleInterrupt)       # Define the keyboardInterupt Response
-startPrintTracking()                                # Enable output tracking
+fancy.start()                                       # Enable output tracking
 print("\n")                                         # Break line
-fancyPrint("Welcome to the RIT SPEX Rover")         # Welcome Message
+fancy.Print("Welcome to the RIT SPEX Rover")         # Welcome Message
+
+
 # controller = wait4XboxController()                  # Loop to ensure X-Box controller connection
 controller = getController()
 global motorPins
-# [m1,m2,m3,m4,m5,m6] = initializeGPIO()        # Initialize GPIO motor objects
-# [m1,m2,m3,m4,m5,m6] = initGPIO()
 motorPins = initGPIO()
 
-fancyPrint("Main Code has Begun")
+arduino.connect()
+
+fancy.Print("Main Code has Begun")
 print("What duty cycle? 30")
 ### Main Code ###
 
@@ -398,5 +340,5 @@ while True:
     #     setDuty(i, baseline)
 
 
-fancyPrint("The Program Has Completed")
+fancy.Print("The Program Has Completed")
 
