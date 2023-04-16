@@ -40,7 +40,7 @@ def connect():
             #           timeout=0.1 - Specifies seconds for the arduino to wait for data
             # Outputs : uno - serial connection between devices
         except:
-            print("ERROR : The arudino is not connected to the Pi")     # Inform that the connection has not been made
+            print("ERROR : The arudino is not connected to the Pi. Attempting to reconnect...")     # Inform that the connection has not been made
             time.sleep(0.5)                                             # Wait half a second
         else:
             time.sleep(1.8)                                             # Gives the connection time to finalize
