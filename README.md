@@ -21,7 +21,9 @@ The terminal is designed to give outputs for all connections, signals, and disco
 ### Setup
 - Please ensure all tools are installed before using this repository:
   - A version of python3, preferably 3.9
-  - [Pre-Commit](https://pre-commit.com/) ->
-    `python3 -m pip install pre-commit` or `brew install pre-commit`
+  - #### [Pre-Commit](https://pre-commit.com/) ->
+    Windows: `pip install pre-commit`
+    Mac: `python3 -m pip install pre-commit` or `brew install pre-commit`
   - [Poetry](https://python-poetry.org) ->
-    `curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -`
+    Windows: `Invoke-WebRequest -Uri https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py -OutFile get-poetry.py`
+    Mac:  `curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -`
