@@ -5,11 +5,18 @@
 
 # Author - Ethan Leone
 # Date - March 31st, 2023
-# Description - This file is the python portion of a connection between a raspberry pi and an arduino
+# Description - This file is the python portion of a connection between a raspberry pi and an arduino 
+# Notes - This connection does require some feedback after each command from the arduino in order to proceed.
+
+# Funtion List
+# connect - Establishes usb connection
+# reset - Resets the arduino
+# tellArm - Sends a G-Code string to the arduino as a number
+# exit - Break usb connection
+# gCode2num - Converts the G-Code string to the number
 
 # %% Start Imports ###
 import time                 # Allows to pause
-import atexit               # "At Exit" module for when code is terminated
 import serial as ser        # Interfaces with the arduino
 ### End imports ###
 
@@ -56,8 +63,7 @@ def reset():
 
 
 def tellArm(gCode):
-    # Tells the arduino to change the mode of a given pin. The data is sent as a 3-digit number, with the first two
-    # digits being the pin-number and the final digit being 1 or 0 for high or low
+    # Tells the arduino what to do
     # Inputs  : gCode - command for the arm
     # Outputs : none
     # Globals : uno - Holds the serial connection to the arduino
