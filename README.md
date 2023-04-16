@@ -15,6 +15,7 @@ The terminal is designed to give outputs for all connections, signals, and disco
 - Interface with the arm
 - Add Encoders
 - Add Lidar
+- Upgrade to a Crea
 - Add Camera
 - Develop Autonomus Navigation
 
