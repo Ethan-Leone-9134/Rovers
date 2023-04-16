@@ -12,12 +12,13 @@
 #%% Start Imports ###
 import os                   # Additional python and pi interface
 import time                 # Allows to pause
+import atexit               # "At Exit" module for when code is terminated
+import signal               # Used to control keyboard interrupt
+import threading            # Imporves GPIO settings
+
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'       # Disable pygame welcome message
 import pygame               # Interfaces with xbox controller
-import atexit               # "At Exit" module for when code is terminated
 import RPi.GPIO as GPIO     # Used for controlling the motors from the pi
-import signal               # Used to control keyboard interrupt
-import threading
 
 import fancy
 import arduino
@@ -115,6 +116,7 @@ def wait4XboxController():
         print("Retrying controller connection...")   # Take a guess...
         time.sleep(2)                                # Two-second delay
 
+
 def getController():
     controller = wait4XboxController()
 
@@ -207,11 +209,6 @@ def buttonPressEvent(event):
         print("button 3 down")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 4:     # "Y" Button
-        # setDuty(4, 20)
-        # setDuty(5, 40)
-        # time.sleep(6)
-        # setDuty(4, 30)
-        # setDuty(5, 30)
         print("button 4 down")
     elif event.button == 5:  
         print("button 5 down")
@@ -284,10 +281,11 @@ def cleanUP():
     # Inputs  : none
     # Outputs : none
     # Globals : uno     -   Calls the arduino communication variable
-    GPIO.cleanup()
 
-    fancy.Print("Program Terminated")        # Inform of termination
-    fancy.close()
+    GPIO.cleanup()                      # Disable gpio pins
+    arduino.exit()                      # Disconnect Arduino
+    fancy.Print("Program Terminated")   # Inform of termination
+    fancy.close()                       # Delete fancy text file
 
 
 def handleInterrupt(signum, frame):
@@ -298,7 +296,6 @@ def handleInterrupt(signum, frame):
 
     print('\n')                                             # Better looks
     fancy.Print("!!! Code Was Interupted By User !!!")       # Inform of interruption
-    
     exit(0)                                                 # exit the program with status code 0 (success)
 
 
@@ -313,31 +310,20 @@ def handleInterrupt(signum, frame):
 atexit.register(cleanUP)                            # Tells the cleanup function to run at close
 signal.signal(signal.SIGINT, handleInterrupt)       # Define the keyboardInterupt Response
 fancy.start()                                       # Enable output tracking
+arduino.connect()                                   # Connect to the arduino
 print("\n")                                         # Break line
-fancy.Print("Welcome to the RIT SPEX Rover")         # Welcome Message
+fancy.Print("Welcome to the RIT SPEX Rover")        # Welcome Message
 
 
-# controller = wait4XboxController()                  # Loop to ensure X-Box controller connection
-controller = getController()
+controller = getController()            # Connect to X-Box Controller
 global motorPins
-motorPins = initGPIO()
-
-arduino.connect()
-
+motorPins = initGPIO()                  # Activate GPIO Pins
 fancy.Print("Main Code has Begun")
-print("What duty cycle? 30")
-### Main Code ###
 
-# presetInputProgram()            # A preset input program to test connections
-# Main Loop
+
+### Main Loop ###
 while True:
     receiveXboxSignals(controller)  # xBox Based Controls
-    # value = int(input("What duty cycle? "))
-    # baseline = value-4
-    # for i in range(6):
-    #     i = i+1
-    
-    #     setDuty(i, baseline)
 
 
 fancy.Print("The Program Has Completed")

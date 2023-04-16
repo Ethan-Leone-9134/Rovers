@@ -55,29 +55,23 @@ def reset():
     time.sleep(1.9)           # Allow uno to run the setup function and start
 
 
-def setPin(pinCode, pinValue):
+def tellArm(gCode):
     # Tells the arduino to change the mode of a given pin. The data is sent as a 3-digit number, with the first two
     # digits being the pin-number and the final digit being 1 or 0 for high or low
-    # Inputs  : pinCode - Number of the pin which will be set
-    #           pinValue - New value of the pin
+    # Inputs  : gCode - command for the arm
     # Outputs : none
     # Globals : uno - Holds the serial connection to the arduino
     # Example : setPin(10, 0) - Turns off pin 10
 
     global uno
 
-    if pinCode < 10:
-        message = "0" + str(pinCode) + str(pinValue)    # Create output string for pins with one digit
-    else:
-        message = str(pinCode) + str(pinValue)          # Create output string for pins with two digits
-
-    print(message)
+    gCommand = gCode2num(gCode)
 
     try:
-        uno.write(str(message).encode())                # Try to transmit through serial connection
+        uno.write(str(gCommand).encode())                # Try to transmit through serial connection
     except:
         print("Arduino is no longer connected !!!")     # Warn about a disconnection if transmittion fails
-        formSerialConnection()                          # Attempt to reconnect to arduino
+        connect()                          # Attempt to reconnect to arduino
     else:
         noResponse = 1                                  # Logical variable to know if the arduino has returned a response
         while noResponse:
@@ -86,7 +80,6 @@ def setPin(pinCode, pinValue):
                 rawData = data.rstrip('\n'.encode('latin-1'))  # Convert monitor to bytes
                 print("Arduino: " + rawData.decode('latin-1'))  # Print data
                 noResponse = 0                          # Let main code progress
-
 
 
 def exit():
@@ -109,3 +102,33 @@ def exit():
         print("----------------------------")
     print("---- Program Terminated ----")
     print("----------------------------")
+
+
+def gCode2num(inputString):
+    inputString = inputString.replace(" ", "")
+    length = len(inputString)
+    [firstChar, secondChar] = inputString[:2]
+    if length > 2:
+        command = ('%04d' % (int(inputString[2:]))).replace('-', '9')
+    else:
+        command = '0000'
+    if firstChar == 'P':
+        comCode = f"1{secondChar}{command}"
+    elif firstChar == 'S':
+        comCode = f"2{secondChar}{command}"
+    elif firstChar == 'Q':
+        comCode = f"3{secondChar}{command}"
+    elif firstChar == 'M':
+        comCode = f"4{secondChar}{command}"
+    elif firstChar == 'R':
+        comCode = f"5{secondChar}{command}"
+    elif firstChar == 'K':
+        comCode = f"6{secondChar}{command}"
+    elif firstChar == 'H':
+        comCode = f"7{secondChar}{command}"
+    elif firstChar == 'E':
+        comCode = f"8{secondChar}{command}"
+    else:
+        comCode = "000000"
+
+    return comCode
