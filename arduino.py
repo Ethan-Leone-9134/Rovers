@@ -26,7 +26,8 @@ def connect():
 
     while True:                                                 # Loop until the connection has been established
         try:
-            uno = ser.Serial('/dev/ttyACM0', 115200, timeout=0.1)       # Enable arduino communication (pi)
+            # uno = ser.Serial('/dev/ttyACM0', 115200, timeout=0.1)       # Enable arduino communication (pi)
+            uno = ser.Serial('COM5', 115200, timeout=0.1)       # Enable arduino communication (laptop)
             # Notes for serial function which established the connection:
             # Inputs  : port - String name of the port which the arduino connects to the device
             #           baudWidth - Rate of communication between pi and arduino (MUST be the same on both)
