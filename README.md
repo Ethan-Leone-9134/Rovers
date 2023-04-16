@@ -9,7 +9,8 @@ The terminal is designed to give outputs for all connections, signals, and disco
 `controlCode.py` - Primary Controlling Script. <br />
 `arduino.py` - Package that allows for connection to an arduino. <br />
 `fancy.py` - Package that allows for a neater way of printing information. <br />
-`serialBridge.ino` - Arm connection. <br />
+`` - <br />
+`simpleGCode.ino` - Arm connection. <br />
 
 ### Goals
 - Interface with the arm
