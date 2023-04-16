@@ -11,7 +11,7 @@ The terminal is designed to give outputs for all connections, signals, and disco
 `fancy.py` - Package that allows for a neater way of printing information. <br />
 `serialBridge.ino` - Arm connection. <br />
 
-#### Goals
+### Goals
 - Interface with the arm
 - Add Encoders
 - Add Lidar
