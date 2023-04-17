@@ -5,7 +5,7 @@
 
 # Author - Ethan Leone
 # Date - March 31st, 2023
-# Description - This file is the python portion of a connection between a raspberry pi and an arduino 
+# Description - This file is the python portion of a connection between a raspberry pi and an arduino
 # Notes - This connection does require some feedback after each command from the arduino in order to proceed.
 
 # Funtion List
@@ -20,8 +20,8 @@ import time                 # Allows to pause
 import serial as ser        # Interfaces with the arduino
 ### End imports ###
 
-
 #%%####### Start Custom Functions ##########
+
 
 def connect():
     # Function to establish a connection with an arduino using serial connection via a USB cable
