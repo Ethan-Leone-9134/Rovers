@@ -15,13 +15,13 @@ import time                 # Allows to pause
 import atexit               # "At Exit" module for when code is terminated
 import signal               # Used to control keyboard interrupt
 import threading            # Imporves GPIO settings
+import math
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'       # Disable pygame welcome message
 import pygame               # Interfaces with xbox controller
 import RPi.GPIO as GPIO     # Used for controlling the motors from the pi
 
 import fancy
-import arduino
 ### End imports ###
 
 #%% Start Formatting ###
@@ -118,10 +118,14 @@ def wait4XboxController():
 
 
 def getController():
+
     controller = wait4XboxController()
 
-    # print(pygame.version.ver)
+    # Set up the event queue
+    pygame.event.set_blocked(None)
+    pygame.event.set_allowed([pygame.JOYBUTTONDOWN, pygame.JOYAXISMOTION, pygame.QUIT])
 
+    # print(pygame.version.ver)
     # # set the vibration to full power for 1 second
     # controller.set_vibration(1.0, 1.0)
     # time.sleep(0.5)
@@ -138,31 +142,17 @@ def receiveXboxSignals(cont):
     # Outputs : none
     # Globals : none
 
+    global contMode
+
     # Check for joystick events
     for event in pygame.event.get():
         if event.type == pygame.JOYBUTTONDOWN:   # Code for button press  # NOTE: MAPPING NEEDS VERIFICATION
             buttonPressEvent(event)
-
         if event.type == pygame.JOYAXISMOTION:  # Code for joystick motion
-            if event.joy == 0:          # If left joystick
-                if event.axis == 0:      # If x-axis
-                    pass
-                elif event.axis == 1:    # If y-axis
-                    print(event.value)
-                    dutyLeft = calcDutyCycle(event.value)
-                    for i in range(3):
-                        i = i+1
-                        setDuty(i, round(dutyLeft))
-                        print("Pin {} to {}".format(i,dutyLeft))
-
-                                        # If right joystick
-                elif event.axis == 2:      # If x-axis
-                    pass
-                elif event.axis == 3:    # If y-axis
-                    dutyRight = calcDutyCycle(-(event.value))
-                    for i in range(3):
-                        i = i+4
-                        setDuty(i, round(dutyRight))
+            if contMode:        # SOLO MODE
+                soloControls(event, cont)
+            else:               # DUO MODE
+                duoControls(event)
         time.sleep(0.001)
 
 
@@ -194,10 +184,12 @@ def buttonPressEvent(event):
     # Function for whenever an xbox button is pressed
     # Inputs  : event - event of button press
     # Outputs : none
-    # Globals : none
+    # Globals : contMode - Mode for controls, either solo (1) or duo (0)
+
+    global contMode
 
     if event.button == 11:   # Middle Right "Menu" Button
-        fancy.Print("Menu Button Pressed")
+        # fancy.Print("Menu Button Pressed")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 0:  # "A" Button
         print("button 0 down")
@@ -206,22 +198,84 @@ def buttonPressEvent(event):
     elif event.button == 2:  # 
         print("button 2 down")
     elif event.button == 3:     # "X" Button
-        print("button 3 down")
+        # print("button 3 down")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 4:     # "Y" Button
         print("button 4 down")
     elif event.button == 5:  
         print("button 5 down")
     elif event.button == 6:     # Left Bumper
-        print("button 6 down")
+        contMode = 1
+        fancy.Print("Button Mode Set to Solo")
+        setColor("magenta")
+        time.sleep(0.5)
+        setColor("orange")
+        # print("button 6 down")
     elif event.button == 7:     # Right Bumper
-        print("button 7 down")
+        contMode = 0
+        setColor("cyan")
+        time.sleep(0.5)
+        setColor("orange")
+        fancy.Print("Button Mode Set to Duo")
+        # print("button 7 down")
     elif event.button == 8:     # Left joystick button
         print("button 8 down")
     elif event.button == 9:     # Right joystick button
         print("button 9 down")
     elif event.button == 10:    # XBOX button
         print("button 10 down")
+
+
+def soloControls(event, cont):
+
+    
+    Xval = cont.get_axis(0)                     # Get the current values of the x-axis and y-axis
+    Yval = cont.get_axis(1)
+    maxRad = math.sqrt(Xval ** 2 + Yval ** 2)   # Calculate the magnitude of the vector
+    theta = math.atan2(Yval, Xval)              # Calculate the angle in radians
+    speedLeft = maxRad * math.sin(theta + math.pi/4)
+    speedRght = maxRad * math.cos(theta + math.pi/4)
+
+    if Xval < 0:
+        speedLeft *= abs(Xval)
+    else:
+        speedRght *= abs(Xval)
+    
+    if Yval < 0:
+        speedLeft *= abs(Yval)
+    else:
+        speedRght *= abs(Yval)
+
+    dutyLeft = calcDutyCycle(speedLeft)
+    for i in range(3):
+        i = i+1
+        setDuty(i, round(dutyLeft))
+
+    
+    dutyRight = calcDutyCycle(speedRght)
+    for i in range(3):
+        i = i+4
+        setDuty(i, round(dutyRight))
+    
+
+
+def duoControls(event):
+    # If left joystick
+    if event.axis == 0:      # If x-axis
+        pass
+    elif event.axis == 1:    # If y-axis
+        dutyLeft = calcDutyCycle(event.value)
+        for i in range(3):
+            i = i+1
+            setDuty(i, round(dutyLeft))
+    # If right joystick
+    elif event.axis == 2:      # If x-axis
+        pass
+    elif event.axis == 3:    # If y-axis
+        dutyRight = calcDutyCycle(-(event.value))
+        for i in range(3):
+            i = i+4
+            setDuty(i, round(dutyRight))
 
 
 ### End xBox Functions
@@ -251,6 +305,13 @@ def initGPIO():
 
     GPIO.setwarnings(False)     # Disable GPIO warnings
     GPIO.setmode(GPIO.BCM)      # Change GPIO Mode
+
+    r = GPIOPin(2)
+    g = GPIOPin(3)
+    b = GPIOPin(4)
+    global rgb
+    rgb = [r, g, b]
+
     p1 = GPIOPin(1)
     p2 = GPIOPin(16)
     p3 = GPIOPin(20)
@@ -273,7 +334,52 @@ def setDuty(motorCode, dutyCycle):
     motorPins[motorCode-1].setDutyCycle(dutyCycle)
 
 
+def setColor(r, g=None, b=None):
+    # Sets the colors of the RGB LED strip
+    # Inputs  : r,g,b - red,green,blue values from 0-255
+    # Outputs : none
+    # Globals : rgb - contains the GPIO pins
+    # Note: If only one argument is given, it will be interpreted as a pre-coded color
+
+    global rgb
+
+    # Predefined color values from ChatGPT
+    colors = {
+        'red': (255, 0, 0),
+        'green': (0, 255, 0),
+        'blue': (0, 0, 255),
+        'white': (255, 255, 255),
+        'black': (0, 0, 0),
+        'off': (0, 0, 0),
+        'yellow': (255, 255, 0),
+        'magenta': (255, 0, 255),
+        'cyan': (0, 255, 255),
+        'orange': (255, 128, 0),
+        'pink': (255, 192, 203),
+        'purple': (128, 0, 128),
+        'lavender': (230, 230, 250),
+        'turquoise': (64, 224, 208),
+        'gold': (255, 215, 0),
+        'silver': (192, 192, 192)
+    }
+
+    # Check if only one argument is given
+    if g is None and b is None:
+        # Interpret as a pre-coded color
+        if r in colors:
+            r, g, b = colors[r]
+        else:
+            raise ValueError("Invalid pre-coded color")
+    
+    rgb[0].setDutyCycle(r/2.55)
+    rgb[1].setDutyCycle(g/2.55)
+    rgb[2].setDutyCycle(b/2.55)
+
+
+
+
 #%% Start General Functions ###
+
 
 
 def cleanUP():
@@ -283,7 +389,7 @@ def cleanUP():
     # Globals : uno     -   Calls the arduino communication variable
 
     GPIO.cleanup()                      # Disable gpio pins
-    arduino.exit()                      # Disconnect Arduino
+    # arduino.exit()                      # Disconnect Arduino
     fancy.Print("Program Terminated")   # Inform of termination
     fancy.close()                       # Delete fancy text file
 
@@ -310,15 +416,20 @@ def handleInterrupt(signum, frame):
 atexit.register(cleanUP)                            # Tells the cleanup function to run at close
 signal.signal(signal.SIGINT, handleInterrupt)       # Define the keyboardInterupt Response
 fancy.start()                                       # Enable output tracking
-arduino.connect()                                   # Connect to the arduino
+# arduino.connect()                                   # Connect to the arduino
 print("\n")                                         # Break line
 fancy.Print("Welcome to the RIT SPEX Rover")        # Welcome Message
 
 
-controller = getController()            # Connect to X-Box Controller
-global motorPins
+
+global motorPins, contMode
 motorPins = initGPIO()                  # Activate GPIO Pins
+contMode = 0
+setColor("red")
+
+controller = getController()            # Connect to X-Box Controller
 fancy.Print("Main Code has Begun")
+setColor("green")
 
 
 ### Main Loop ###
@@ -327,4 +438,3 @@ while True:
 
 
 fancy.Print("The Program Has Completed")
-
