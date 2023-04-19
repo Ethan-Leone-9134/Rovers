@@ -19,6 +19,13 @@ The terminal is designed to give outputs for all connections, signals, and disco
 - Add Camera
 - Develop Autonomus Navigation
 
+### Colors
+Red - Starting Up
+Green - Ready
+Orange - Has been moved
+Cyan - Changed to duo mode
+Magenta - Changed to solo mode
+
 ### Setup
 - Please ensure all tools are installed before using this repository:
   - #### A version of python3, preferably 3.9
