@@ -172,7 +172,7 @@ def calcDutyCycle(signal):
     # Center is always 0
     # For Right Joystick axes are 2,3
 
-    offset = 30 - 4.5                                # Neutral dutyCycle
+    offset = 30 - 2                                 # Neutral dutyCycle
     if (signal >= -0.01) and (signal <= 0.09):      # If joysticks are likely untouched
         duty = offset                                # Prevent motion
     else:                                           # If signal seems intentional
