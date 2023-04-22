@@ -192,6 +192,7 @@ def buttonPressEvent(event):
         # fancy.Print("Menu Button Pressed")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 0:  # "A" Button
+        setColor("green")
         print("button 0 down")
     elif event.button == 1:  # "B" Button
         print("button 1 down")
@@ -201,6 +202,7 @@ def buttonPressEvent(event):
         # print("button 3 down")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 4:     # "Y" Button
+        setColor("yellow")
         print("button 4 down")
     elif event.button == 5:  
         print("button 5 down")
