@@ -314,12 +314,12 @@ def initGPIO():
     global rgb
     rgb = [r, g, b]
 
-    p1 = GPIOPin(1)
-    p2 = GPIOPin(16)
-    p3 = GPIOPin(20)
-    p4 = GPIOPin(0)
-    p5 = GPIOPin(5)
-    p6 = GPIOPin(6)
+    p1 = GPIOPin(1)     # Front Left
+    p2 = GPIOPin(16)    # Middle Left
+    p3 = GPIOPin(20)    # Back Left
+    p4 = GPIOPin(0)     # Front Right
+    p5 = GPIOPin(5)     # Middle Right
+    p6 = GPIOPin(6)     # Back Right
 
     return [p1, p2, p3, p4, p5, p6]
 
