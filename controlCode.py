@@ -294,6 +294,11 @@ def duoControls(event):
 #%% Start GPIO Functions ###
 
 def initGPIO():
+    # Function initializes the GPIO pins for the pi
+    # Inputs  : none
+    # Outputs : p1-6 - Motor pins
+    # Globals : RGB - RGB Pins
+    
     class GPIOPin:
         ## NOTE: From ChatGPT
         def __init__(self, pin_num):
