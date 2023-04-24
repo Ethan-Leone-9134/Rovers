@@ -229,7 +229,11 @@ def buttonPressEvent(event):
 
 
 def soloControls(event, cont):
-
+    # duoControls utilizes only the left joystick
+    # Inputs  : event - data from the xbox joystick change
+    #           cont  - xBox controller variable
+    # Outputs : none
+    # Globals : none
     
     Xval = cont.get_axis(0)                     # Get the current values of the x-axis and y-axis
     Yval = cont.get_axis(1)
@@ -262,6 +266,11 @@ def soloControls(event, cont):
 
 
 def duoControls(event):
+    # duoControls utilizes both the left and right joysticks
+    # Inputs  : event - data from the xbox joystick change
+    # Outputs : none
+    # Globals : none
+
     # If left joystick
     if event.axis == 0:      # If x-axis
         pass
