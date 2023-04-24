@@ -35,3 +35,8 @@ The terminal is designed to give outputs for all connections, signals, and disco
   - #### [Poetry](https://python-poetry.org) ->
     Windows: `Invoke-WebRequest -Uri https://raw.githubusercontent.com/python-poetry/poetry/master/install-poetry.py -OutFile get-poetry.py` <br />
     Mac:  `curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python3 -`
+
+### Git Commands:
+git clone https://github.com/Ethan-Leone-9134/Rovers.git
+git checkout -b new-<new_branch_name>
+git commit -m <message here>
