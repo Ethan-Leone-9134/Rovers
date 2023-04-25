@@ -1,4 +1,4 @@
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 # -- coding: utf-8 -*-
 
 # NOTE: Do not remove above code, it tells the pi what coding language is being used!
@@ -16,6 +16,9 @@ import atexit               # "At Exit" module for when code is terminated
 import signal               # Used to control keyboard interrupt
 import threading            # Imporves GPIO settings
 import math
+
+# sleep for 10 seconds (sanity check)
+time.sleep(10)
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'       # Disable pygame welcome message
 import pygame               # Interfaces with xbox controller
@@ -150,9 +153,10 @@ def receiveXboxSignals(cont):
             buttonPressEvent(event)
         if event.type == pygame.JOYAXISMOTION:  # Code for joystick motion
             if contMode:        # SOLO MODE
-                soloControls(event, cont)
+                # soloControls(event, cont)
+                duoControlsBack(event)
             else:               # DUO MODE
-                duoControls(event)
+                duoControlsFront(event)
         time.sleep(0.001)
 
 
@@ -172,7 +176,7 @@ def calcDutyCycle(signal):
     # Center is always 0
     # For Right Joystick axes are 2,3
 
-    offset = 30 - 2                                 # Neutral dutyCycle
+    offset = 30 - 2                                # Neutral dutyCycle
     if (signal >= -0.01) and (signal <= 0.09):      # If joysticks are likely untouched
         duty = offset                                # Prevent motion
     else:                                           # If signal seems intentional
@@ -195,6 +199,7 @@ def buttonPressEvent(event):
         setColor("green")
         print("button 0 down")
     elif event.button == 1:  # "B" Button
+        setColor("red")
         print("button 1 down")
     elif event.button == 2:  # 
         print("button 2 down")
@@ -202,7 +207,6 @@ def buttonPressEvent(event):
         # print("button 3 down")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 4:     # "Y" Button
-        setColor("yellow")
         print("button 4 down")
     elif event.button == 5:  
         print("button 5 down")
@@ -211,13 +215,13 @@ def buttonPressEvent(event):
         fancy.Print("Button Mode Set to Solo")
         setColor("magenta")
         time.sleep(0.5)
-        setColor("orange")
+        setColor("green")
         # print("button 6 down")
     elif event.button == 7:     # Right Bumper
         contMode = 0
         setColor("cyan")
         time.sleep(0.5)
-        setColor("orange")
+        setColor("green")
         fancy.Print("Button Mode Set to Duo")
         # print("button 7 down")
     elif event.button == 8:     # Left joystick button
@@ -229,11 +233,7 @@ def buttonPressEvent(event):
 
 
 def soloControls(event, cont):
-    # duoControls utilizes only the left joystick
-    # Inputs  : event - data from the xbox joystick change
-    #           cont  - xBox controller variable
-    # Outputs : none
-    # Globals : none
+
     
     Xval = cont.get_axis(0)                     # Get the current values of the x-axis and y-axis
     Yval = cont.get_axis(1)
@@ -265,12 +265,7 @@ def soloControls(event, cont):
     
 
 
-def duoControls(event):
-    # duoControls utilizes both the left and right joysticks
-    # Inputs  : event - data from the xbox joystick change
-    # Outputs : none
-    # Globals : none
-
+def duoControlsFront(event):
     # If left joystick
     if event.axis == 0:      # If x-axis
         pass
@@ -288,17 +283,30 @@ def duoControls(event):
             i = i+4
             setDuty(i, round(dutyRight))
 
+def duoControlsBack(event):
+    # If left joystick
+    if event.axis == 0:      # If x-axis
+        pass
+    elif event.axis == 1:    # If y-axis
+        dutyLeft = calcDutyCycle(-(event.value))
+        for i in range(3):
+            i = i+1
+            setDuty(i, round(dutyLeft))
+    # If right joystick
+    elif event.axis == 2:      # If x-axis
+        pass
+    elif event.axis == 3:    # If y-axis
+        dutyRight = calcDutyCycle((event.value))
+        for i in range(3):
+            i = i+4
+            setDuty(i, round(dutyRight))
+
 
 ### End xBox Functions
 
 #%% Start GPIO Functions ###
 
 def initGPIO():
-    # Function initializes the GPIO pins for the pi
-    # Inputs  : none
-    # Outputs : p1-6 - Motor pins
-    # Globals : RGB - RGB Pins
-    
     class GPIOPin:
         ## NOTE: From ChatGPT
         def __init__(self, pin_num):
@@ -328,12 +336,12 @@ def initGPIO():
     global rgb
     rgb = [r, g, b]
 
-    p1 = GPIOPin(1)     # Front Left
-    p2 = GPIOPin(16)    # Middle Left
-    p3 = GPIOPin(20)    # Back Left
-    p4 = GPIOPin(0)     # Front Right
-    p5 = GPIOPin(5)     # Middle Right
-    p6 = GPIOPin(6)     # Back Right
+    p1 = GPIOPin(1)
+    p2 = GPIOPin(16)
+    p3 = GPIOPin(20)
+    p4 = GPIOPin(0)
+    p5 = GPIOPin(5)
+    p6 = GPIOPin(6)
 
     return [p1, p2, p3, p4, p5, p6]
 
@@ -442,6 +450,7 @@ global motorPins, contMode
 motorPins = initGPIO()                  # Activate GPIO Pins
 contMode = 0
 setColor("red")
+time.sleep(0.5)
 
 controller = getController()            # Connect to X-Box Controller
 fancy.Print("Main Code has Begun")
