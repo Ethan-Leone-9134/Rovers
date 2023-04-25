@@ -288,17 +288,17 @@ def duoControlsBack(event):
     if event.axis == 0:      # If x-axis
         pass
     elif event.axis == 1:    # If y-axis
-        dutyLeft = calcDutyCycle(-(event.value))
+        dutyLeft = calcDutyCycle((event.value))
         for i in range(3):
-            i = i+1
+            i = i+4
             setDuty(i, round(dutyLeft))
     # If right joystick
     elif event.axis == 2:      # If x-axis
         pass
     elif event.axis == 3:    # If y-axis
-        dutyRight = calcDutyCycle((event.value))
+        dutyRight = calcDutyCycle(-(event.value))
         for i in range(3):
-            i = i+4
+            i = i+1
             setDuty(i, round(dutyRight))
 
 
