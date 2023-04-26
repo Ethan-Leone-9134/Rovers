@@ -18,7 +18,8 @@ import threading            # Imporves GPIO settings
 import math
 
 # sleep for 10 seconds (sanity check)
-time.sleep(10)
+if os.environ.get('TERM') != 'xterm-256color':
+    time.sleep(10)
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'       # Disable pygame welcome message
 import pygame               # Interfaces with xbox controller
@@ -190,16 +191,16 @@ def buttonPressEvent(event):
     # Outputs : none
     # Globals : contMode - Mode for controls, either solo (1) or duo (0)
 
-    global contMode
+    global contMode, rgb
 
     if event.button == 11:   # Middle Right "Menu" Button
         # fancy.Print("Menu Button Pressed")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 0:  # "A" Button
-        setColor("green")
+        # setColor("green")
         print("button 0 down")
     elif event.button == 1:  # "B" Button
-        setColor("red")
+        # setColor("red")
         print("button 1 down")
     elif event.button == 2:  # 
         print("button 2 down")
@@ -213,15 +214,11 @@ def buttonPressEvent(event):
     elif event.button == 6:     # Left Bumper
         contMode = 1
         fancy.Print("Button Mode Set to Solo")
-        setColor("magenta")
-        time.sleep(0.5)
-        setColor("green")
+        rgb.setBlue(255)
         # print("button 6 down")
     elif event.button == 7:     # Right Bumper
         contMode = 0
-        setColor("cyan")
-        time.sleep(0.5)
-        setColor("green")
+        rgb.setBlue(0)
         fancy.Print("Button Mode Set to Duo")
         # print("button 7 down")
     elif event.button == 8:     # Left joystick button
@@ -264,7 +261,6 @@ def soloControls(event, cont):
         setDuty(i, round(dutyRight))
     
 
-
 def duoControlsFront(event):
     # If left joystick
     if event.axis == 0:      # If x-axis
@@ -282,6 +278,7 @@ def duoControlsFront(event):
         for i in range(3):
             i = i+4
             setDuty(i, round(dutyRight))
+
 
 def duoControlsBack(event):
     # If left joystick
@@ -327,14 +324,30 @@ def initGPIO():
             self.pwm.stop()
             GPIO.cleanup(self.pin_num)
 
+        
+
+    class RGBPins:
+        def __init__(self, pin1, pin2, pin3):
+            self.redPin = GPIOPin(pin1)
+            self.greenPin = GPIOPin(pin2)
+            self.bluePin = GPIOPin(pin3)
+        def setRed(self, value):
+            self.redPin.setDutyCycle(value/2.55)
+        def setGreen(self, value):
+            self.greenPin.setDutyCycle(value/2.55)
+        def setBlue(self, value):
+            self.bluePin.setDutyCycle(value/2.55)
+        def setColor(self, name):
+            colorTrip = get_color(name)
+            self.redPin.setDutyCycle(colorTrip[0]/2.55)
+            self.greenPin.setDutyCycle(colorTrip[1]/2.55)
+            self.bluePin.setDutyCycle(colorTrip[2]/2.55)
+           
     GPIO.setwarnings(False)     # Disable GPIO warnings
     GPIO.setmode(GPIO.BCM)      # Change GPIO Mode
 
-    r = GPIOPin(2)
-    g = GPIOPin(3)
-    b = GPIOPin(4)
     global rgb
-    rgb = [r, g, b]
+    rgb = RGBPins(2, 3, 4)
 
     p1 = GPIOPin(1)
     p2 = GPIOPin(16)
@@ -346,29 +359,8 @@ def initGPIO():
     return [p1, p2, p3, p4, p5, p6]
 
 
-def setDuty(motorCode, dutyCycle):
-    # Change a motor's duty cycle
-    # Inputs  : motorCode - number of motor to be change [(1-3) - Left]   [(4-6) - Right]
-    #           dutyCycle - target duty cycle to set motor to
-    # Outputs : none
-    # Globals : uno - Holds the serial connection to the arduino
-    # Example : setDuty(1, 20) - Sets Front Left motor to 20
-
-    global motorPins
-    motorPins[motorCode-1].setDutyCycle(dutyCycle)
-
-
-def setColor(r, g=None, b=None):
-    # Sets the colors of the RGB LED strip
-    # Inputs  : r,g,b - red,green,blue values from 0-255
-    # Outputs : none
-    # Globals : rgb - contains the GPIO pins
-    # Note: If only one argument is given, it will be interpreted as a pre-coded color
-
-    global rgb
-
-    # Predefined color values from ChatGPT
-    colors = {
+def get_color(name):
+    switcher = {
         'red': (255, 0, 0),
         'green': (0, 255, 0),
         'blue': (0, 0, 255),
@@ -386,18 +378,30 @@ def setColor(r, g=None, b=None):
         'gold': (255, 215, 0),
         'silver': (192, 192, 192)
     }
+    return switcher.get(name, [0, 0, 0])
 
-    # Check if only one argument is given
-    if g is None and b is None:
-        # Interpret as a pre-coded color
-        if r in colors:
-            r, g, b = colors[r]
-        else:
-            raise ValueError("Invalid pre-coded color")
-    
-    rgb[0].setDutyCycle(r/2.55)
-    rgb[1].setDutyCycle(g/2.55)
-    rgb[2].setDutyCycle(b/2.55)
+
+def setDuty(motorCode, dutyCycle):
+    # Change a motor's duty cycle
+    # Inputs  : motorCode - number of motor to be change [(1-3) - Left]   [(4-6) - Right]
+    #           dutyCycle - target duty cycle to set motor to
+    # Outputs : none
+    # Globals : uno - Holds the serial connection to the arduino
+    # Example : setDuty(1, 20) - Sets Front Left motor to 20
+
+    global motorPins 
+    curr = motorPins[motorCode-1].duty_cycle
+    tempNew = dutyCycle
+    stepValue = 1
+    if abs((tempNew) - (curr)) >= stepValue:  # If the distance between the current and desired is > 1
+        if tempNew > curr:  # If the value of the desired duty is greater than the current value
+            new = curr + stepValue  # Set output to current value + 1
+        else:  # If the value of the desired is less than the current value
+            new = curr - stepValue  # Set output to current value - 1
+    else:  # If the value is does not exceed the step
+        new = tempNew  # Set output to tempNew
+
+    motorPins[motorCode-1].setDutyCycle(new)
 
 
 
@@ -446,20 +450,24 @@ fancy.Print("Welcome to the RIT SPEX Rover")        # Welcome Message
 
 
 
-global motorPins, contMode
+global motorPins, contMode, rgb
 motorPins = initGPIO()                  # Activate GPIO Pins
 contMode = 0
-setColor("red")
+rgb.setColor("red")
 time.sleep(0.5)
 
 controller = getController()            # Connect to X-Box Controller
 fancy.Print("Main Code has Begun")
-setColor("green")
+rgb.setColor("green")
 
 
 ### Main Loop ###
 while True:
     receiveXboxSignals(controller)  # xBox Based Controls
+    if pygame.joystick.get_count() == 0:
+        rgb.setColor("red")
+        contMode = 0
+        controller = getController()
 
 
 fancy.Print("The Program Has Completed")
