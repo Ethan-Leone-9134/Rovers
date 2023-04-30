@@ -3,11 +3,13 @@
 
 # NOTE: Do not remove above code, it tells the pi what coding language is being used!
 
-# Welcome, this is the RIT Spex Rover Pi control code. This is the code (as of 4/12/23) that controls the rover. 
-# Depending on the active functions. The pi takes inputs from either a predetermined program or an xbox controller.
-# It then sends those inputs to an arduino uno which does the actual control of the motors. 
-# On termination, the pi sends instructions to the arduino to disable all motors then reset.
-# The terminal is designed to give outputs for all connections, signals, and disconnections.
+"""
+Welcome, this is the RIT Spex Rover Pi control code. This is the code (as of 4/29/23) that controls the rover. 
+The raspberry pi takes inputs from an xbox controller. GPIO pins are used for control.
+The left joystick controls the left wheels, the right joystick controls the right wheels.
+Pressing bumpers changes which way is considered the "front" of the rover.
+The terminal is designed to give outputs for all connections, signals, and disconnections.
+"""
 
 #%% Start Imports ###
 import os                   # Additional python and pi interface
@@ -15,17 +17,16 @@ import time                 # Allows to pause
 import atexit               # "At Exit" module for when code is terminated
 import signal               # Used to control keyboard interrupt
 import threading            # Imporves GPIO settings
-import math
+import math                 # Used for math stuffs
 
-# sleep for 10 seconds (sanity check)
-if os.environ.get('TERM') != 'xterm-256color':
-    time.sleep(10)
-
+if os.environ.get('TERM') != 'xterm-256color':      # Checks that code is run at startup
+    time.sleep(10)                                  # Add a pause for everything to catchup
+ 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = 'hide'       # Disable pygame welcome message
 import pygame               # Interfaces with xbox controller
 import RPi.GPIO as GPIO     # Used for controlling the motors from the pi
 
-import fancy
+import fancy                # Custom Module used for formatted printing
 ### End imports ###
 
 #%% Start Formatting ###
@@ -41,15 +42,25 @@ os.putenv('SDL_VIDEODRIVER', 'dummy')       # Disable digital display
     # manualInputs          - Takes input from terminal
 # xBox      - Functions that interface with the xBox controller
     # wait4XboxController   - Loop that runs until the xbox controller has been connected
+    # getController         - Used to output the xbox controller to the rest of the script
     # receiveXboxSignals    - Process data sent from the xbox controller
     # calcDutyCycle         - Converts [-1, 1] range to duty cycle
     # buttonPressEvent      - Command for button presses
+    # duoControlsFront      - Primary controls for forward motion
+    # duoControlsBack       - Secondary controls for backwarsds motion
 # GPIO      - Functions for pi control of motors
     # initGPIO        - Create the GPIO motor objects
     # setDuty               - Tells the arduino to set a motor to a duty cycle
 # General   - Miscellaneous Functions
     # cleanUP               - Function that runs on termination of code
     # handleInterrupt       - Handles a Ctrl+C without displaying an error message
+
+# Globals : rgb         - Controls LED pins
+#           inReverse   - Boolean for the controls being inverted
+#           aPresses    - Tracks timestamps of "A" button presses
+#           slowMode    - Boolean for half speed mode
+
+global rgb, inReverse, aPresses, slowMode
 
 #%% Start Input Programs ###
 
@@ -91,7 +102,7 @@ def manualInputs():
 
 
 
-#%% Start xBox Functinos
+#%% Start xBox Functions
 
 def wait4XboxController():
     # Function to delay program until x-box controller is connected
@@ -122,11 +133,23 @@ def wait4XboxController():
 
 
 def getController():
+    # Functions handles activation of the xbox controller and changes LEDs
+    # Inputs  : None
+    # Outputs : controller - xBox controller variable
+    # Globals : rgb         - Controls LED pins
+    #           inReverse   - Boolean for the controls being inverted
+    #           aPresses    - Tracks timestamps of "A" button presses
+    #           slowMode    - Boolean for half speed mode
 
-    controller = wait4XboxController()
+    global rgb, inReverse, aPresses, slowMode
 
-    # Set up the event queue
-    pygame.event.set_blocked(None)
+    inReverse = 0                           # Disable reverse mode
+    aPresses = []                           # Tracks a Presses
+    slowMode = 0                            # Sets speed to full
+    rgb.setColor("red")                     # Set LEDs to red
+    time.sleep(1)                           # Delay to highlight red light
+    controller = wait4XboxController()      # Waits until controller is connected
+    pygame.event.set_blocked(None)          # Set up the event queue
     pygame.event.set_allowed([pygame.JOYBUTTONDOWN, pygame.JOYAXISMOTION, pygame.QUIT])
 
     # print(pygame.version.ver)
@@ -136,7 +159,7 @@ def getController():
     # # stop the vibration
     # controller.set_vibration(0, 0)
 
-
+    rgb.setColor("green")                   # Set LEDs to green
     return controller
 
 
@@ -144,28 +167,27 @@ def receiveXboxSignals(cont):
     # Function to direct all data from the x-box controller
     # Inputs  : none
     # Outputs : none
-    # Globals : none
+    # Globals : inReverse - Boolean variable for the controls being inverted
 
-    global contMode
+    global inReverse
 
     # Check for joystick events
     for event in pygame.event.get():
         if event.type == pygame.JOYBUTTONDOWN:   # Code for button press  # NOTE: MAPPING NEEDS VERIFICATION
             buttonPressEvent(event)
         if event.type == pygame.JOYAXISMOTION:  # Code for joystick motion
-            if contMode:        # SOLO MODE
-                # soloControls(event, cont)
+            if inReverse:        # Invert Controls
                 duoControlsBack(event)
-            else:               # DUO MODE
+            else:                # Normal Controls
                 duoControlsFront(event)
         time.sleep(0.001)
 
 
 def calcDutyCycle(signal):
     # Function to set the new value of the duty cycle from xbox controller
-    # Inputs  : signal - xbox joystick value (event.value)
-    # Outputs : duty   - value of updated duty cycle
-    # Globals : none
+    # Inputs  : signal   - xbox joystick value (event.value)
+    # Outputs : duty     - value of updated duty cycle
+    # Globals : slowMode - Boolean for half speed mode
     #
     # 20% - Full Reverse    =       Rover Goes forwards
     # 30% - Stopped         =       Rover is not moving
@@ -177,11 +199,13 @@ def calcDutyCycle(signal):
     # Center is always 0
     # For Right Joystick axes are 2,3
 
-    offset = 30 - 2                                # Neutral dutyCycle
+    global slowMode
+
+    offset = 30 - 1                                # Neutral dutyCycle
     if (signal >= -0.01) and (signal <= 0.09):      # If joysticks are likely untouched
         duty = offset                                # Prevent motion
     else:                                           # If signal seems intentional
-        duty = -10 * signal + offset            # Run Conversion algorithm for joystick to dutyCycle
+        duty = (-10+3*slowMode) * signal + offset    # Run Conversion algorithm for joystick to dutyCycle
     return duty
 
 
@@ -189,18 +213,35 @@ def buttonPressEvent(event):
     # Function for whenever an xbox button is pressed
     # Inputs  : event - event of button press
     # Outputs : none
-    # Globals : contMode - Mode for controls, either solo (1) or duo (0)
+    # Globals : rgb         - Controls LED pins
+    #           inReverse   - Boolean for the controls being inverted
+    #           aPresses    - Tracks timestamps of "A" button presses
+    #           slowMode    - Boolean for half speed mode
 
-    global contMode, rgb
+    global rgb, inReverse, aPresses, slowMode
 
     if event.button == 11:   # Middle Right "Menu" Button
         # fancy.Print("Menu Button Pressed")
         handleInterrupt(signal.SIGINT, None)     # Instantly kill script
     elif event.button == 0:  # "A" Button
-        # setColor("green")
+        currentTime = time.time()               # Record time
+        aPresses.append(currentTime)            # Add the press to the holder variable
+        print(aPresses)
+        if len(aPresses) >= 3:                   # If there have been least 3 clicks
+            print(currentTime - aPresses[-2])
+            if currentTime - aPresses[-2] < 1:      # If the last three clicks all happened within one second
+                slowMode = not(slowMode)                # Swap slowmode
+                if slowMode:                       # Tells user about any changes
+                    fancy.Print("Slow Mode Activated")
+                    rgb.setGreen(80)
+                else:
+                    fancy.Print("Normal Speed Activated")
+                    rgb.setGreen(255)
+                aPresses = []                           # Clear a presses
+        if len(aPresses) > 3:                 # Clear trailing timestamps
+                aPresses = aPresses[-2:]
         print("button 0 down")
     elif event.button == 1:  # "B" Button
-        # setColor("red")
         print("button 1 down")
     elif event.button == 2:  # 
         print("button 2 down")
@@ -212,14 +253,14 @@ def buttonPressEvent(event):
     elif event.button == 5:  
         print("button 5 down")
     elif event.button == 6:     # Left Bumper
-        contMode = 1
-        fancy.Print("Button Mode Set to Solo")
-        rgb.setBlue(255)
+        inReverse = 1               # Set boolean to true
+        rgb.setBlue(255)            # Activate Reverse Indicator
+        fancy.Print("Rover is Now in Reverse")
         # print("button 6 down")
     elif event.button == 7:     # Right Bumper
-        contMode = 0
-        rgb.setBlue(0)
-        fancy.Print("Button Mode Set to Duo")
+        inReverse = 0               # Set boolean to false
+        rgb.setBlue(0)              # Activate Reverse Indicator
+        fancy.Print("Rover is Now Front Facing")
         # print("button 7 down")
     elif event.button == 8:     # Left joystick button
         print("button 8 down")
@@ -227,41 +268,14 @@ def buttonPressEvent(event):
         print("button 9 down")
     elif event.button == 10:    # XBOX button
         print("button 10 down")
-
-
-def soloControls(event, cont):
-
-    
-    Xval = cont.get_axis(0)                     # Get the current values of the x-axis and y-axis
-    Yval = cont.get_axis(1)
-    maxRad = math.sqrt(Xval ** 2 + Yval ** 2)   # Calculate the magnitude of the vector
-    theta = math.atan2(Yval, Xval)              # Calculate the angle in radians
-    speedLeft = maxRad * math.sin(theta + math.pi/4)
-    speedRght = maxRad * math.cos(theta + math.pi/4)
-
-    if Xval < 0:
-        speedLeft *= abs(Xval)
-    else:
-        speedRght *= abs(Xval)
-    
-    if Yval < 0:
-        speedLeft *= abs(Yval)
-    else:
-        speedRght *= abs(Yval)
-
-    dutyLeft = calcDutyCycle(speedLeft)
-    for i in range(3):
-        i = i+1
-        setDuty(i, round(dutyLeft))
-
-    
-    dutyRight = calcDutyCycle(speedRght)
-    for i in range(3):
-        i = i+4
-        setDuty(i, round(dutyRight))
-    
+   
 
 def duoControlsFront(event):
+    # Function for primary front facing controls
+    # Inputs  : event - event for the axis change
+    # Outputs : none
+    # Globals : none
+
     # If left joystick
     if event.axis == 0:      # If x-axis
         pass
@@ -281,6 +295,11 @@ def duoControlsFront(event):
 
 
 def duoControlsBack(event):
+    # Function for secondary backwards facing controls
+    # Inputs  : event - event for the axis change
+    # Outputs : none
+    # Globals : none
+
     # If left joystick
     if event.axis == 0:      # If x-axis
         pass
@@ -304,33 +323,41 @@ def duoControlsBack(event):
 #%% Start GPIO Functions ###
 
 def initGPIO():
+    # Functions initializes all GPIO pins for motors and LEDs
+    # Inputs  : none
+    # Outputs : Motor Pins
+    # Globals : rgb - Controls LED pins
+
     class GPIOPin:
         ## NOTE: From ChatGPT
-        def __init__(self, pin_num):
-            self.pin_num = pin_num
-            self.frequency = 200
-            self.duty_cycle = 0
-            GPIO.setup(self.pin_num, GPIO.OUT)
-            self.pwm = GPIO.PWM(self.pin_num, self.frequency)
-            self.pwm.start(self.duty_cycle)
-            self.lock = threading.Lock()
+        def __init__(self, pin_num, freq):        # Creates the pin variable
+            self.pin_num = pin_num              # Pin number
+            self.frequency = freq                # PWM Frequency
+            self.duty_cycle = 0                 # Start duty cycle at zero
+            GPIO.setup(self.pin_num, GPIO.OUT)  # Set as an output pin
+            self.pwm = GPIO.PWM(self.pin_num, self.frequency)   # Declare signal type
+            self.pwm.start(self.duty_cycle)     # Start the pwm signal
+            self.lock = threading.Lock()        # Manipulate the thread
         
-        def setDutyCycle(self, new_duty):
-            with self.lock:
-                self.duty_cycle = new_duty
-                self.pwm.ChangeDutyCycle(self.duty_cycle)
+        def setDutyCycle(self, new_duty):   # Properly changes duty cycle
+            with self.lock:                     # Allows for safe setting of the duty cycle
+                self.duty_cycle = new_duty          # Overwrite storage value
+                self.pwm.ChangeDutyCycle(self.duty_cycle)   # Actually change the pwm signal
                 
-        def stop(self):
-            self.pwm.stop()
-            GPIO.cleanup(self.pin_num)
+        def stop(self):                     # Used to delete the pin data
+            self.pwm.stop()                     # Directly stops
+            GPIO.cleanup(self.pin_num)          # Cleans up the pins values
 
-        
+    # class motorPins:
+    #     def __init__(self, pinNumbers):
+    #         for i in pinNumbers:
+
 
     class RGBPins:
         def __init__(self, pin1, pin2, pin3):
-            self.redPin = GPIOPin(pin1)
-            self.greenPin = GPIOPin(pin2)
-            self.bluePin = GPIOPin(pin3)
+            self.redPin = GPIOPin(pin1, 1000)
+            self.greenPin = GPIOPin(pin2, 1000)
+            self.bluePin = GPIOPin(pin3, 1000)
         def setRed(self, value):
             self.redPin.setDutyCycle(value/2.55)
         def setGreen(self, value):
@@ -349,17 +376,28 @@ def initGPIO():
     global rgb
     rgb = RGBPins(2, 3, 4)
 
-    p1 = GPIOPin(1)
-    p2 = GPIOPin(16)
-    p3 = GPIOPin(20)
-    p4 = GPIOPin(0)
-    p5 = GPIOPin(5)
-    p6 = GPIOPin(6)
+    p1 = GPIOPin(1, 200)
+    p1.setDutyCycle(28)
+    p2 = GPIOPin(16, 200)
+    p2.setDutyCycle(28)
+    p3 = GPIOPin(20, 200)
+    p3.setDutyCycle(28)
+    p4 = GPIOPin(0, 200)
+    p4.setDutyCycle(28)
+    p5 = GPIOPin(5, 200)
+    p5.setDutyCycle(28)
+    p6 = GPIOPin(6, 200)
+    p6.setDutyCycle(28)
 
     return [p1, p2, p3, p4, p5, p6]
 
 
 def get_color(name):
+    # Function converts a name to an RGB triple
+    # Inputs  : name - Name of the color
+    # Outputs : Triple of rgb values
+    # Globals : none
+
     switcher = {
         'red': (255, 0, 0),
         'green': (0, 255, 0),
@@ -392,7 +430,7 @@ def setDuty(motorCode, dutyCycle):
     global motorPins 
     curr = motorPins[motorCode-1].duty_cycle
     tempNew = dutyCycle
-    stepValue = 1
+    stepValue = 100
     if abs((tempNew) - (curr)) >= stepValue:  # If the distance between the current and desired is > 1
         if tempNew > curr:  # If the value of the desired duty is greater than the current value
             new = curr + stepValue  # Set output to current value + 1
@@ -449,24 +487,17 @@ print("\n")                                         # Break line
 fancy.Print("Welcome to the RIT SPEX Rover")        # Welcome Message
 
 
-
-global motorPins, contMode, rgb
 motorPins = initGPIO()                  # Activate GPIO Pins
-contMode = 0
-rgb.setColor("red")
-time.sleep(0.5)
+
 
 controller = getController()            # Connect to X-Box Controller
 fancy.Print("Main Code has Begun")
-rgb.setColor("green")
 
 
 ### Main Loop ###
 while True:
     receiveXboxSignals(controller)  # xBox Based Controls
     if pygame.joystick.get_count() == 0:
-        rgb.setColor("red")
-        contMode = 0
         controller = getController()
 
 
