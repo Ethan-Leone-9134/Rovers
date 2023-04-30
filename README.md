@@ -19,12 +19,19 @@ The terminal is designed to give outputs for all connections, signals, and disco
 - Add Camera
 - Develop Autonomus Navigation
 
+### Controls
+`Joysticks` - Move corresponding side of wheels (left for left and right for right). <br/>
+`Left Bumper` - Reverse controls so that the back of the rover is considered the front. <br/>
+`Right Bumper` - Forward controls sot that the front of the rover is the front. <br/>
+`Triple Click A` - Swaps between slow and normal speed. <br/>
+`X` - Terminates Script
+
 ### Colors
-- Red - Starting Up
-- Green - Ready
-- Orange - Has been moved
-- Cyan - Changed to duo mode
-- Magenta - Changed to solo mode
+`Red and Green` - Script inactive. <br/>
+`Red` - Controller not connected. <br/>
+`Green` - Code running properly. <br/>
+`Blue` - Rover is in reverse so the back is considered the front. <br/>
+`Dim Green` - Slow mode active. <br/>
 
 ### Setup
 - Please ensure all tools are installed before using this repository:
