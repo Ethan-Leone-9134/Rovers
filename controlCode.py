@@ -431,13 +431,13 @@ def setDuty(motorCode, dutyCycle):
     curr = motorPins[motorCode-1].duty_cycle
     tempNew = dutyCycle
     stepValue = 100
-    if abs((tempNew) - (curr)) >= stepValue:  # If the distance between the current and desired is > 1
-        if tempNew > curr:  # If the value of the desired duty is greater than the current value
-            new = curr + stepValue  # Set output to current value + 1
-        else:  # If the value of the desired is less than the current value
-            new = curr - stepValue  # Set output to current value - 1
-    else:  # If the value is does not exceed the step
-        new = tempNew  # Set output to tempNew
+    if abs((tempNew) - (curr)) >= stepValue:    # If the distance between the current and desired is > 1
+        if tempNew > curr:                          # If the value of the desired duty is greater than the current value
+            new = curr + stepValue                      # Set output to current value + 1
+        else:                                       # If the value of the desired is less than the current value
+            new = curr - stepValue                      # Set output to current value - 1
+    else:                                       # If the value is does not exceed the step
+        new = tempNew                               # Set output to tempNew
 
     motorPins[motorCode-1].setDutyCycle(new)
 
@@ -482,7 +482,6 @@ def handleInterrupt(signum, frame):
 atexit.register(cleanUP)                            # Tells the cleanup function to run at close
 signal.signal(signal.SIGINT, handleInterrupt)       # Define the keyboardInterupt Response
 fancy.start()                                       # Enable output tracking
-# arduino.connect()                                   # Connect to the arduino
 print("\n")                                         # Break line
 fancy.Print("Welcome to the RIT SPEX Rover")        # Welcome Message
 
@@ -496,9 +495,11 @@ fancy.Print("Main Code has Begun")
 
 ### Main Loop ###
 while True:
-    receiveXboxSignals(controller)  # xBox Based Controls
-    if pygame.joystick.get_count() == 0:
-        controller = getController()
+    receiveXboxSignals(controller)          # xBox Based Controls
+    if pygame.joystick.get_count() == 0:    # Detect disconnection
+        for i in range(6):                      # For each motor
+            setDuty(i+1, 30)                        # Disable motor
+        controller = getController()            # Attempt reconnection (DOES NOT WORK)
 
 
 fancy.Print("The Program Has Completed")
